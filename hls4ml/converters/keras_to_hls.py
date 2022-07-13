@@ -318,7 +318,12 @@ def keras_to_hls(config):
 
         #Extract inbound nodes
         if 'inbound_nodes' in keras_layer and len(keras_layer['inbound_nodes']) > 0:
-            input_names = [ inputs_map.get(inp[0], inp[0]) for inp in keras_layer['inbound_nodes'][0] ]
+            input_names = [ inputs_map.get(inp[0], inp[0]) for inp in keras_layer['inbound_nodes'][0] ] # why using inputs_map.get?
+            if keras_layer['inbound_nodes'][0][0][-1]: # multi_head_attention  has inbound: [[['input_3', 0, 0, {'value': ['dense_3', 0, 0]}]]]
+                inputname2 = list(keras_layer['inbound_nodes'][0][0][-1].values())
+                input_names+=[inp[0] for inp in inputname2]
+            # print("input_names: ", input_names)
+
         else:
             input_names = None
 
@@ -368,5 +373,10 @@ def keras_to_hls(config):
     #################
 
     print('Creating HLS model')
+                            # config, a dict, has key: 'HLSConfig' and 'KerasModel'
+                            # reader can read all the weight and bias
+                            # layer_list a list of dict, each element is one layer output from parser
+                            # input_layers, a list
+                            # output layers, a list
     hls_model = ModelGraph(config, reader, layer_list, input_layers, output_layers)
     return hls_model
