@@ -1150,7 +1150,6 @@ class GarNetStack(GarNet):
 
 class MultiHeadAttention(Layer):
     _expected_attributes = [
-        # does Attribute define the i/o for the template?
         Attribute('num_heads'),
         Attribute('head_dim_key'),
         Attribute('head_dim_value'),
@@ -1197,6 +1196,8 @@ class MultiHeadAttention(Layer):
             data = self.model.get_weights_data(self.name, '{lname}/{wtype}'.format(lname=lname, wtype=wtype))
             if wtype == 'kernel':
                 vtype = 'weight'
+                if lname in ['key', 'query', 'value']:
+                    data = data.transpose((1, 0, 2))
             else:
                 vtype = 'bias'
 
