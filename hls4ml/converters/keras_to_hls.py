@@ -371,10 +371,5 @@ def keras_to_hls(config):
     #################
 
     print('Creating HLS model')
-                            # config, a dict, has key: 'HLSConfig' and 'KerasModel'
-                            # reader can read all the weight and bias
-                            # layer_list a list of dict, each element is one layer output from parser
-                            # input_layers, a list
-                            # output layers, a list
     hls_model = ModelGraph(config, reader, layer_list, input_layers, output_layers)
     return hls_model
