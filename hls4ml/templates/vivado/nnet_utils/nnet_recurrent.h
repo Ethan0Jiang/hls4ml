@@ -382,7 +382,7 @@ template<class data_T, class res_T, typename CONFIG_T>
       inputacc_zr[iacc] = tmpres[index] + tmpres_state_zr[index];
     }
 
-    // Activation function Sub layer -- START  ##where is ::template defined?
+    // Activation function Sub layer -- START
     CONFIG_T::template activation_recr<typename CONFIG_T::accum_t, typename CONFIG_T::weight_t, typename CONFIG_T::ACT_CONFIG_GRU>::activation(inputacc_zr, tmpres_zr);
 
     // Activation function Sub layer -- END
