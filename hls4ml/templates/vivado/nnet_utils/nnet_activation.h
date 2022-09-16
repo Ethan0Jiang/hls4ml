@@ -24,6 +24,8 @@
 #include "ap_fixed.h"
 #include "nnet_common.h"
 
+#include <iostream>
+
 namespace nnet {
 
 struct activ_config
@@ -194,7 +196,7 @@ void init_invert_table(typename CONFIG_T::inv_table_t table_out[CONFIG_T::table_
     // The template data_T is the data type used to address the table
     for(unsigned i = 0; i < CONFIG_T::table_size; i++){
         float x = softmax_real_val_from_idx<data_T, CONFIG_T>(i);
-        typename CONFIG_T::inv_table_t inv_x = 1 / x;
+        typename CONFIG_T::inv_table_t inv_x = 1.0 / x;
         table_out[i] = inv_x;
     }
 }
@@ -301,9 +303,10 @@ void softmax_stable(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in]){
 template<typename CONFIG_T, int N_TABLE>
 void init_exp_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
 {
+    float exp_range = 4.0;
     for (int ii = 0; ii < N_TABLE; ii++) {
         // First, convert from table index to X-value (signed 8-bit, range -8 to +8)
-        float in_val = 2*8.0*(ii-float(N_TABLE)/2.0)/float(N_TABLE);
+        float in_val = 2*exp_range*(ii-float(N_TABLE)/2.0)/float(N_TABLE);
         // Next, compute lookup table function
         typename CONFIG_T::table_t real_val = exp_fcn_float(in_val);
         //std::cout << "Lookup table In Value: " << in_val << " Result: " << real_val << std::endl;
@@ -314,11 +317,12 @@ void init_exp_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
 template<typename CONFIG_T, int N_TABLE>
 void init_invert_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
 {
+    float inv_range = 16.0;
     // Inversion function:
     //   result = 1/x
     for (int ii = 0; ii < N_TABLE; ii++) {
         // First, convert from table index to X-value (signed 8-bit, range 0 to +64)
-        float in_val = 64.0*ii/float(N_TABLE);
+        float in_val = inv_range*ii/float(N_TABLE);
         // Next, compute lookup table function
         if (in_val > 0.0) table_out[ii] = 1.0/in_val;
         else table_out[ii] = 0.0;
@@ -328,6 +332,8 @@ void init_invert_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
 template<class data_T, class res_T, typename CONFIG_T>
 void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
+    int exp_range = 4;
+    int inv_range = 16;
     // Initialize the lookup table
 #ifdef __HLS_SYN__
     bool initialized = false;
@@ -361,8 +367,8 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
         for (int jj=0; jj<CONFIG_T::n_in; jj++) {
             if (ii==jj) exp_diff_res = 1;
             else {
-                data_round = (data_cache[jj]-data_cache[ii])*CONFIG_T::table_size/16;
-                index = data_round + 8*CONFIG_T::table_size/16;
+                data_round = (data_cache[jj]-data_cache[ii])*CONFIG_T::table_size/(exp_range*2);
+                index = data_round + exp_range*CONFIG_T::table_size/(exp_range*2);
                 if (index < 0)   index = 0;
                 if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
                 exp_diff_res = exp_table[index];
@@ -371,13 +377,15 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
         }
     }
 
+    data_T one = 1.0;
     //Second loop to invert
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        int exp_res_index = exp_res[ii]*CONFIG_T::table_size/64;
+        int exp_res_index = exp_res[ii]*CONFIG_T::table_size/inv_range;
         if (exp_res_index < 0)   exp_res_index = 0;
         if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
         //typename CONFIG_T::table_t exp_res_invert = invert_table[exp_res_index];
         res[ii] = (res_T) invert_table[exp_res_index];
+        // res[ii] = one/exp_res[ii];
     }
 
 }
