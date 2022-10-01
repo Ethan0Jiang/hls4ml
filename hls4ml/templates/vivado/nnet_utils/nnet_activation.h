@@ -317,7 +317,7 @@ void init_exp_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
 template<typename CONFIG_T, int N_TABLE>
 void init_invert_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
 {
-    float inv_range = 16.0;
+    float inv_range = 64.0;
     // Inversion function:
     //   result = 1/x
     for (int ii = 0; ii < N_TABLE; ii++) {
@@ -329,11 +329,94 @@ void init_invert_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
     }
 }
 
+// template<class data_T, class res_T, typename CONFIG_T>
+// void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
+// {
+//     int exp_range = 4;
+//     int inv_range = 16;
+//     // Initialize the lookup table
+// #ifdef __HLS_SYN__
+//     bool initialized = false;
+//     typename CONFIG_T::table_t exp_table[CONFIG_T::table_size];
+//     typename CONFIG_T::table_t invert_table[CONFIG_T::table_size];
+// #else
+//     static bool initialized = false;
+//     static typename CONFIG_T::table_t exp_table[CONFIG_T::table_size];
+//     static typename CONFIG_T::table_t invert_table[CONFIG_T::table_size];
+// #endif
+//     if (!initialized) {
+//         init_exp_table_legacy<CONFIG_T, CONFIG_T::table_size>(exp_table);
+//         init_invert_table_legacy<CONFIG_T, CONFIG_T::table_size>(invert_table);
+//         initialized = true;
+//     }
+
+    
+
+//     // Index into the lookup table based on data for exponentials
+//     typename CONFIG_T::table_t exp_res[CONFIG_T::n_in];// different, independent, fixed point precision
+//     typename CONFIG_T::table_t exp_diff_res;// different, independent, fixed point precision
+//     data_T data_cache[CONFIG_T::n_in];
+//     int data_round;
+//     int index;
+//     // for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+//     //     data_cache[ii] = data[ii];
+//     //     exp_res[ii] = 0;
+//     // }
+
+//     // for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+//     //     for (int jj=0; jj<CONFIG_T::n_in; jj++) {
+//     //         if (ii==jj) exp_diff_res = 1;
+//     //         else {
+//     //             data_round = (data_cache[jj]-data_cache[ii])*CONFIG_T::table_size/(exp_range*2);
+//     //             index = data_round + exp_range*CONFIG_T::table_size/(exp_range*2);
+//     //             if (index < 0)   index = 0;
+//     //             if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
+//     //             exp_diff_res = exp_table[index];
+//     //         }
+//     //         exp_res[ii] += exp_diff_res;
+//     //     }
+//     // }
+
+//     // data_T one = 1.0;
+//     // //Second loop to invert
+//     // for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+//     //     int exp_res_index = exp_res[ii]*CONFIG_T::table_size/inv_range;
+//     //     if (exp_res_index < 0)   exp_res_index = 0;
+//     //     if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
+//     //     //typename CONFIG_T::table_t exp_res_invert = invert_table[exp_res_index];
+//     //     res[ii] = (res_T) invert_table[exp_res_index];
+//     // }
+
+//     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+//         #pragma HLS PIPELINE
+//         exp_res[ii] = 0;
+//         for (int jj=0; jj<CONFIG_T::n_in; jj++) {
+//             // #pragma HLS UNROLL
+//             if (ii==jj) exp_diff_res = 1;
+//             else {
+//                 data_round = (data[jj]-data[ii])*CONFIG_T::table_size/(exp_range*2);
+//                 index = data_round + exp_range*CONFIG_T::table_size/(exp_range*2);
+//                 if (index < 0)   index = 0;
+//                 if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
+//                 exp_diff_res = exp_table[index];
+//             }
+//             exp_res[ii] += exp_diff_res;
+//         }
+
+//         int exp_res_index = exp_res[ii]*CONFIG_T::table_size/inv_range;
+//         if (exp_res_index < 0)   exp_res_index = 0;
+//         if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
+//         res[ii] = (res_T) invert_table[exp_res_index];
+//     }
+
+// }
+
 template<class data_T, class res_T, typename CONFIG_T>
 void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
+	#pragma HLS pipeline
     int exp_range = 4;
-    int inv_range = 16;
+    int inv_range = 64;
     // Initialize the lookup table
 #ifdef __HLS_SYN__
     bool initialized = false;
@@ -349,44 +432,45 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
         init_invert_table_legacy<CONFIG_T, CONFIG_T::table_size>(invert_table);
         initialized = true;
     }
-
-    #pragma HLS PIPELINE
-
+    
     // Index into the lookup table based on data for exponentials
     typename CONFIG_T::table_t exp_res[CONFIG_T::n_in];// different, independent, fixed point precision
     typename CONFIG_T::table_t exp_diff_res;// different, independent, fixed point precision
     data_T data_cache[CONFIG_T::n_in];
     int data_round;
     int index;
+
+#pragma HLS array_partition variable=data_cache complete
+
+
+    typename CONFIG_T::table_t denominator;
+    typename CONFIG_T::table_t deno_inver;
+
+    denominator = 0;
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        data_cache[ii] = data[ii];
-        exp_res[ii] = 0;
+		data_round = data[ii]*CONFIG_T::table_size/(exp_range*2);
+		index = data_round + exp_range*CONFIG_T::table_size/(exp_range*2);
+		if (index < 0)   index = 0;
+		if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
+		denominator += exp_table[index];
+		data_cache[ii] = exp_table[index];
     }
 
-    for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        for (int jj=0; jj<CONFIG_T::n_in; jj++) {
-            if (ii==jj) exp_diff_res = 1;
-            else {
-                data_round = (data_cache[jj]-data_cache[ii])*CONFIG_T::table_size/(exp_range*2);
-                index = data_round + exp_range*CONFIG_T::table_size/(exp_range*2);
-                if (index < 0)   index = 0;
-                if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
-                exp_diff_res = exp_table[index];
-            }
-            exp_res[ii] += exp_diff_res;
-        }
-    }
 
-    data_T one = 1.0;
-    //Second loop to invert
-    for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-        int exp_res_index = exp_res[ii]*CONFIG_T::table_size/inv_range;
-        if (exp_res_index < 0)   exp_res_index = 0;
-        if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
-        //typename CONFIG_T::table_t exp_res_invert = invert_table[exp_res_index];
-        res[ii] = (res_T) invert_table[exp_res_index];
-        // res[ii] = one/exp_res[ii];
-    }
+    //using lookup table for inverse
+	int exp_res_index = denominator*CONFIG_T::table_size/inv_range;
+	if (exp_res_index < 0)   exp_res_index = 0;
+	if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
+	deno_inver = (res_T) invert_table[exp_res_index];
+
+    // // not using lookup table
+    // data_T one = 1.0;
+    // deno_inver = one/denominator;
+
+	for (int ii=0; ii<CONFIG_T::n_in; ii++) {
+		res[ii] = data_cache[ii]*deno_inver;
+	}
+
 
 }
 
