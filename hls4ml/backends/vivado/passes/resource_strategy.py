@@ -7,7 +7,7 @@ class ApplyResourceStrategy(OptimizerPass):
     ''' Transposes the weights to use the dense_resource matrix multiply routine '''
     def match(self, node):
         
-        node_matches = isinstance(node, (Dense, Conv1D, SeparableConv1D, Conv2D, SeparableConv2D, LSTM, GRU))
+        node_matches = isinstance(node, (Dense, Conv1D, SeparableConv1D, Conv2D, SeparableConv2D, LSTM, GRU, MultiHeadAttention))
         is_resource_strategy = node.get_attr('strategy', '').lower() == 'resource'
         already_transformed = node.get_attr('_weights_transposed', False) == True
 
@@ -17,6 +17,7 @@ class ApplyResourceStrategy(OptimizerPass):
         if isinstance(node, Dense):
             node.weights['weight'].data = np.transpose(node.weights['weight'].data)
         elif isinstance(node, Conv1D):
+            node.weights['weight'].data = node.weights['weight'].data[0]
             node.weights['weight'].data = np.transpose(node.weights['weight'].data, axes=[2, 0, 1]) #(W,C,F) => (F,W,C)
         elif isinstance(node, SeparableConv1D):
             node.weights['depthwise'].data = np.transpose(node.weights['depthwise'].data, axes=[2, 0, 1]) #(W,C,F) => (F,W,C)
