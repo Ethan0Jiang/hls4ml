@@ -17,7 +17,6 @@ class ApplyResourceStrategy(OptimizerPass):
         if isinstance(node, Dense):
             node.weights['weight'].data = np.transpose(node.weights['weight'].data)
         elif isinstance(node, Conv1D):
-            node.weights['weight'].data = node.weights['weight'].data[0]
             node.weights['weight'].data = np.transpose(node.weights['weight'].data, axes=[2, 0, 1]) #(W,C,F) => (F,W,C)
         elif isinstance(node, SeparableConv1D):
             node.weights['depthwise'].data = np.transpose(node.weights['depthwise'].data, axes=[2, 0, 1]) #(W,C,F) => (F,W,C)

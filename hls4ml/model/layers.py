@@ -285,6 +285,7 @@ class Dense(Layer):
     _expected_attributes = [
         Attribute('n_in'),
         Attribute('n_out'),
+        Attribute('seq_len'),
 
         WeightAttribute('weight'),
         WeightAttribute('bias'),
