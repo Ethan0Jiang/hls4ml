@@ -737,6 +737,35 @@ class BatchNormalization(Layer):
         self.add_weights_variable(name='scale', var_name='s{index}', data=scale)
         self.add_weights_variable(name='bias', var_name='b{index}', data=bias)
 
+class LayerNormalization(Layer):
+    _expected_attributes = [
+        Attribute('n_in'),
+        # Attribute('axis', default=-1),
+        Attribute('seq_len'),
+        WeightAttribute('scale'),
+        WeightAttribute('bias'),
+
+        TypeAttribute('scale'),
+        TypeAttribute('bias'),
+    ]
+
+    def initialize(self):
+        inp = self.get_input_variable()
+        shape = inp.shape
+        dims = inp.dim_names
+        self.add_output_variable(shape, dims)
+
+        gamma = self.model.get_weights_data(self.name, 'gamma')
+        beta = self.model.get_weights_data(self.name, 'beta')
+
+        scale = gamma
+        bias = beta
+
+        self.add_weights_variable(name='scale', var_name='s{index}', data=scale)
+        self.add_weights_variable(name='bias', var_name='b{index}', data=bias)
+
+
+
 class Merge(Layer):
     def initialize(self):
         assert(len(self.inputs) == 2)
@@ -1234,6 +1263,7 @@ layer_map = {
     'DepthwiseConv2D'        : DepthwiseConv2D,
     'BatchNormalization'     : BatchNormalization,
     'QBatchNormalization'    : BatchNormalization,
+    'LayerNormalization'     : LayerNormalization,
     'MaxPooling1D'           : Pooling1D,
     'AveragePooling1D'       : Pooling1D,
     'MaxPooling2D'           : Pooling2D,
