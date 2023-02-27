@@ -30,10 +30,11 @@ class ApplyResourceStrategy(OptimizerPass):
             node.weights['weight'].data = np.transpose(node.weights['weight'].data)
             node.weights['recurrent_weight'].data = np.transpose(node.weights['recurrent_weight'].data)
         elif isinstance(node, (MultiHeadAttention)):               
-            node.weights['key_weight'].data   = np.transpose(node.weights['key_weight'].data,   axes=[0, 2, 1])
-            node.weights['query_weight'].data = np.transpose(node.weights['query_weight'].data, axes=[0, 2, 1])
-            node.weights['value_weight'].data = np.transpose(node.weights['value_weight'].data, axes=[0, 2, 1])
-            node.weights['attention_output_weight'].data = np.transpose(node.weights['attention_output_weight'].data, axes=[2, 0, 1])
+        #     node.weights['key_weight'].data   = np.transpose(node.weights['key_weight'].data,   axes=[0, 2, 1])
+        #     node.weights['query_weight'].data = np.transpose(node.weights['query_weight'].data, axes=[0, 2, 1])
+        #     node.weights['value_weight'].data = np.transpose(node.weights['value_weight'].data, axes=[0, 2, 1])
+        #     node.weights['attention_output_weight'].data = np.transpose(node.weights['attention_output_weight'].data, axes=[2, 0, 1])
+            print("not transpose")
         else:
             raise Exception('Unexpected layer {} with resource strategy'.format(node.class_name))
         
