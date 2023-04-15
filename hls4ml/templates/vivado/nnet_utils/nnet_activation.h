@@ -301,29 +301,27 @@ void softmax_stable(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in]){
 }
 
 template<typename CONFIG_T, int N_TABLE>
-void init_exp_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
+void init_exp_table_legacy(typename CONFIG_T::exp_table_t table_out[N_TABLE])
 {
-    float exp_range = 4.0;
+    float exp_range = (float) CONFIG_T::exp_range;
     for (int ii = 0; ii < N_TABLE; ii++) {
         // First, convert from table index to X-value (signed 8-bit, range -8 to +8)
         float in_val = 2*exp_range*(ii-float(N_TABLE)/2.0)/float(N_TABLE);
         // Next, compute lookup table function
-        typename CONFIG_T::table_t real_val = exp_fcn_float(in_val);
+        typename CONFIG_T::exp_table_t real_val = exp_fcn_float(in_val);
         //std::cout << "Lookup table In Value: " << in_val << " Result: " << real_val << std::endl;
         table_out[ii] = real_val;
     }
 }
 
 template<typename CONFIG_T, int N_TABLE>
-void init_invert_table_legacy(typename CONFIG_T::table_t table_out[N_TABLE])
+void init_invert_table_legacy(typename CONFIG_T::inv_table_t table_out[N_TABLE])
 {
-    float inv_range = 64.0;
+    float inv_range = (float) CONFIG_T::inv_range;
     // Inversion function:
     //   result = 1/x
     for (int ii = 0; ii < N_TABLE; ii++) {
-        // First, convert from table index to X-value (signed 8-bit, range 0 to +64)
         float in_val = inv_range*ii/float(N_TABLE);
-        // Next, compute lookup table function
         if (in_val > 0.0) table_out[ii] = 1.0/in_val;
         else table_out[ii] = 0.0;
     }
@@ -334,17 +332,17 @@ template<class data_T, class res_T, typename CONFIG_T>
 void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 {
 	#pragma HLS pipeline
-    int exp_range = 4;
-    int inv_range = 64;
+    int exp_range = CONFIG_T::exp_range;
+    int inv_range = CONFIG_T::inv_range;
     // Initialize the lookup table
 #ifdef __HLS_SYN__
     bool initialized = false;
-    typename CONFIG_T::table_t exp_table[CONFIG_T::table_size];
-    typename CONFIG_T::table_t invert_table[CONFIG_T::table_size];
+    typename CONFIG_T::exp_table_t exp_table[CONFIG_T::table_size];
+    typename CONFIG_T::inv_table_t invert_table[CONFIG_T::table_size];
 #else
     static bool initialized = false;
-    static typename CONFIG_T::table_t exp_table[CONFIG_T::table_size];
-    static typename CONFIG_T::table_t invert_table[CONFIG_T::table_size];
+    static typename CONFIG_T::exp_table_t exp_table[CONFIG_T::table_size];
+    static typename CONFIG_T::inv_table_t invert_table[CONFIG_T::table_size];
 #endif
     if (!initialized) {
         init_exp_table_legacy<CONFIG_T, CONFIG_T::table_size>(exp_table);
@@ -353,18 +351,18 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
     }
     
     // Index into the lookup table based on data for exponentials
-    typename CONFIG_T::table_t exp_res[CONFIG_T::n_in];// different, independent, fixed point precision
-    typename CONFIG_T::table_t exp_diff_res;// different, independent, fixed point precision
-    data_T data_cache[CONFIG_T::n_in];
+    typename CONFIG_T::exp_table_t exp_res[CONFIG_T::n_in];// different, independent, fixed point precision
+    typename CONFIG_T::exp_table_t exp_diff_res;// different, independent, fixed point precision
+    typename CONFIG_T::exp_table_t data_cache[CONFIG_T::n_in];
     int data_round;
     int index;
 
 #pragma HLS array_partition variable=data_cache complete
 
 
-    typename CONFIG_T::table_t denominator;
-    typename CONFIG_T::table_t deno_inver;
-
+    typename CONFIG_T::accum_t denominator;
+    typename CONFIG_T::inv_table_t deno_inver;
+    // std::cout << "denominator: " << std::endl;    /////
     denominator = 0;
     for (int ii=0; ii<CONFIG_T::n_in; ii++) {
 		data_round = data[ii]*CONFIG_T::table_size/(exp_range*2);
@@ -372,22 +370,21 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 		if (index < 0)   index = 0;
 		if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
 		denominator += exp_table[index];
+        // std::cout << " index: " << index << " " <<exp_table[index] ;   /////
 		data_cache[ii] = exp_table[index];
     }
+    // std::cout << "end  " << std::endl;    /////
 
 
     //using lookup table for inverse
 	int exp_res_index = denominator*CONFIG_T::table_size/inv_range;
 	if (exp_res_index < 0)   exp_res_index = 0;
 	if (exp_res_index > CONFIG_T::table_size-1) exp_res_index = CONFIG_T::table_size-1;
-	deno_inver = (res_T) invert_table[exp_res_index];
+	deno_inver = invert_table[exp_res_index];
 
-    // // not using lookup table
-    // data_T one = 1.0;
-    // deno_inver = one/denominator;
 
 	for (int ii=0; ii<CONFIG_T::n_in; ii++) {
-		res[ii] = data_cache[ii]*deno_inver;
+		res[ii] = (res_T) (data_cache[ii]*deno_inver);
 	}
 
 
