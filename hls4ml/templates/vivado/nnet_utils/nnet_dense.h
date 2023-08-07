@@ -52,6 +52,13 @@ void dense(
             dense_resource<data_T, res_T, CONFIG_T>(data, res, weights, biases);
         }
     }
+
+
+//    std::cout << "out Dense: " << std::endl;
+//    for(int i=0; i < CONFIG_T::n_out*CONFIG_T::seq_len; ++i) {
+//        std::cout << res[i] << " ";
+//    }
+//    std::cout << std::endl;
 }
 
 }

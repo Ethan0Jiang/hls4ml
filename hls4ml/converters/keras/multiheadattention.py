@@ -5,7 +5,7 @@ from hls4ml.converters.keras_to_hls import keras_handler
 def parse_mutiheadattention_layer(keras_layer, input_names, input_shapes, data_reader, config):
     # assume input_shapes is: [[None, seq, dim]]
     assert('MultiHeadAttention' in keras_layer['class_name'])
-    assert(input_shapes[0]==keras_layer['config']['query_shape'])
+    assert(input_shapes[0] == keras_layer['config']['query_shape'])
     
     layer = parse_default_keras_layer(keras_layer, input_names)
     

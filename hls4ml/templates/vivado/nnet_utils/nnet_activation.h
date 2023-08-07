@@ -357,9 +357,9 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
     int data_round;
     int index;
 
-    // std::cout << "input to SM: " << std::endl;              /////
-    // nnet::print_result<data_T, CONFIG_T::n_in>(data, std::cout);  /////
-    // std::cout << " " << std::endl;   /////
+//    std::cout << "input to SM: " << std::endl;              /////
+//    nnet::print_result<data_T, CONFIG_T::n_in>(data, std::cout);  /////
+//    std::cout << " " << std::endl;   /////
 
 #pragma HLS array_partition variable=data_cache complete
 
@@ -398,6 +398,10 @@ void  softmax_legacy(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_in])
 	for (int ii=0; ii<CONFIG_T::n_in; ii++) {
 		res[ii] = (res_T) (data_cache[ii]*deno_inver);
 	}
+
+//	std::cout << "out SM: " << std::endl;
+//    nnet::print_result<result_t, CONFIG_T::n_in>(res, std::cout);
+//    std::cout << " " << std::endl;
 
 
 }

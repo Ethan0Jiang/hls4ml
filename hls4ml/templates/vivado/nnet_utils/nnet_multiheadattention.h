@@ -336,9 +336,9 @@ void multiheadattention(
     }
 
     nnet::dense_out<data_T, res_T, CONFIG_T>(matr_out, res, attention_output_weight, attention_output_bias);
-	// std::cout << "out MHA: " << std::endl;
-    // nnet::print_result<result_t, CONFIG_T::seq_len * CONFIG_T::feature_dim>(res, std::cout);
-    // std::cout << " " << std::endl;
+//    std::cout << "out MHA: " << std::endl;
+//    nnet::print_result<result_t, CONFIG_T::seq_len * CONFIG_T::feature_dim>(res, std::cout);
+//    std::cout << " " << std::endl;
 
 }
 }

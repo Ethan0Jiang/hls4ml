@@ -76,7 +76,7 @@ def get_type(quantizer_config):
 
 def get_quantizer_from_config(keras_layer, quantizer_var):
     quantizer_config = keras_layer['config']['{}_quantizer'.format(quantizer_var)]
-    if keras_layer['class_name'] == 'QBatchNormalization':
+    if keras_layer['class_name'] == 'QBatchNormalization' or keras_layer['class_name'] == 'QLayerNormalization':
         return QKerasQuantizer(quantizer_config)
     elif 'binary' in quantizer_config['class_name']:
         return QKerasBinaryQuantizer(quantizer_config, xnor=(quantizer_var == 'kernel'))

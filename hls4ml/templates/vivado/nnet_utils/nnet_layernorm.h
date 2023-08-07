@@ -36,6 +36,7 @@ struct layernorm_config
     // Internal data type definitions
     typedef float bias_t;
     typedef float scale_t;
+    typedef ap_fixed<16, 8> mean_t;
 
     // Layer Sizes
     static const unsigned n_in = 20;
@@ -146,8 +147,9 @@ void init_sqr_table(typename CONFIG_T::table_t table_out[N_TABLE])
 
 // }
 
-
-
+//////////////////////
+// Dennis's version //
+//////////////////////
 template<class data_T, class res_T, typename CONFIG_T>
 void layernorm_1d(
     data_T    data[CONFIG_T::n_in/CONFIG_T::seq_len],
@@ -159,7 +161,6 @@ void layernorm_1d(
 #pragma HLS PIPELINE II=CONFIG_T::reuse_factor
 #pragma HLS ARRAY_PARTITION variable=data complete
 #pragma HLS ARRAY_PARTITION variable=res complete
-
 int inv_range_inv = (int) 1/ CONFIG_T::table_range;
 typename CONFIG_T::table_t deno_inver = 0;
 #ifdef __HLS_SYN__
@@ -175,35 +176,43 @@ typename CONFIG_T::table_t deno_inver = 0;
     }
 
     static const unsigned dim = CONFIG_T::n_in/CONFIG_T::seq_len;
-    data_T sum_cache = 0;
-    data_T sum_cache2 = 0; 
-    data_T var, mean, diff;
-    data_T data_diff[dim];
-    data_T data_norm[dim];
+    typename CONFIG_T::mean_t sum_cache = 0;
+    typename CONFIG_T::mean_t sum_cache2 = 0;
+    typename CONFIG_T::mean_t var, mean, diff;
+    typename CONFIG_T::mean_t data_diff[dim];
+    typename CONFIG_T::mean_t data_norm[dim];
+//    data_T sum_cache = 0;
+//    data_T sum_cache2 = 0;
+//    data_T var, mean, diff;
+////    typename CONFIG_T::mean_t mean;
+////    typename CONFIG_T::var_t var;
+////    typename CONFIG_T::diff_t diff;
+//    data_T data_diff[dim];
+//    data_T data_norm[dim];
 
     #pragma HLS ARRAY_PARTITION variable=data_diff complete
     #pragma HLS ARRAY_PARTITION variable=data_diff complete
-    
-    const data_T k_inv = 1.0/dim;
+
+    const typename CONFIG_T::mean_t k_inv = 1.0/dim;
     for (int i = 0; i < dim; ++i){
-        sum_cache += data[i];
+        sum_cache += static_cast<typename CONFIG_T::mean_t>(data[i]);
     }
-    mean = CONFIG_T::template product<data_T, data_T>::product(sum_cache, k_inv);
-    // std::cout << "mean: " << std::endl;
-    // std::cout << mean << std::endl;
-    
+    mean = CONFIG_T::template product<typename CONFIG_T::mean_t, typename CONFIG_T::mean_t>::product(sum_cache, k_inv);
+//    std::cout << "mean: " << std::endl;
+//    std::cout << mean << std::endl;
+
     for (int i = 0; i < dim; ++i){
-        data_diff[i] = data[i] - mean;
+        data_diff[i] = static_cast<typename CONFIG_T::mean_t>(data[i]) - mean;
         diff = data_diff[i]*data_diff[i];
         sum_cache2 += diff;
-        // std::cout << "data_diff: " << std::endl;
-        // std::cout << data_diff[i] << std::endl;
-        // std::cout << " " << std::endl;
+//        std::cout << "data_diff: " << std::endl;
+//        std::cout << data_diff[i] << std::endl;
+//        std::cout << " " << std::endl;
     }
-    var = CONFIG_T::template product<data_T, data_T>::product(sum_cache2, k_inv);
-    // std::cout << "var: " << std::endl;
-    // std::cout << var << std::endl;
-    // std::cout << " " << std::endl;
+    var = CONFIG_T::template product<typename CONFIG_T::mean_t, typename CONFIG_T::mean_t>::product(sum_cache2, k_inv);
+//    std::cout << "var: " << std::endl;
+//    std::cout << var << std::endl;
+//    std::cout << " " << std::endl;
 
     int index = var*(CONFIG_T::table_size)*inv_range_inv;
     if (CONFIG_T::table_range > 1) index = var*(CONFIG_T::table_size)/ (int)CONFIG_T::table_range;
@@ -211,16 +220,98 @@ typename CONFIG_T::table_t deno_inver = 0;
 	if (index < 0)   index = 0;
 	if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
 	deno_inver = (typename CONFIG_T::table_t) invert_sqr_table[index];
-    // std::cout << "deno_inver: " << std::endl;
-    // std::cout << deno_inver << std::endl;
-    // std::cout << " " << std::endl;
+//    std::cout << "deno_inver: " << std::endl;
+//    std::cout << deno_inver << std::endl;
+//    std::cout << " " << std::endl;
 
+//    std::cout << "index: " << std::endl;
+//    std::cout << index << std::endl;
+//    std::cout << " " << std::endl;
 
     for (int i = 0; i < dim; ++i){
         res[i] = data_diff[i] * deno_inver * scale[i] + bias[i];
     }
 
 }
+////////////////////////
+//Original One Ethan's//
+////////////////////////
+//template<class data_T, class res_T, typename CONFIG_T>
+//void layernorm_1d(
+//    data_T    data[CONFIG_T::n_in/CONFIG_T::seq_len],
+//    res_T     res[CONFIG_T::n_in/CONFIG_T::seq_len],
+//    typename CONFIG_T::scale_t  scale[CONFIG_T::n_in/CONFIG_T::seq_len],
+//    typename CONFIG_T::bias_t   bias[CONFIG_T::n_in/CONFIG_T::seq_len]
+//)
+//{
+//#pragma HLS PIPELINE II=CONFIG_T::reuse_factor
+//#pragma HLS ARRAY_PARTITION variable=data complete
+//#pragma HLS ARRAY_PARTITION variable=res complete
+//
+//int inv_range_inv = (int) 1/ CONFIG_T::table_range;
+//typename CONFIG_T::table_t deno_inver = 0;
+//#ifdef __HLS_SYN__
+//    bool initialized = false;
+//    typename CONFIG_T::table_t invert_sqr_table[CONFIG_T::table_size];
+//#else
+//    static bool initialized = false;
+//    static typename CONFIG_T::table_t invert_sqr_table[CONFIG_T::table_size];
+//#endif
+//    if (!initialized) {
+//        init_invert_sqr_table<CONFIG_T, CONFIG_T::table_size>(invert_sqr_table);
+//        initialized = true;
+//    }
+//
+//    static const unsigned dim = CONFIG_T::n_in/CONFIG_T::seq_len;
+//    data_T sum_cache = 0;
+//    data_T sum_cache2 = 0;
+//    data_T var, mean, diff;
+//    data_T data_diff[dim];
+//    data_T data_norm[dim];
+//
+//    #pragma HLS ARRAY_PARTITION variable=data_diff complete
+//    #pragma HLS ARRAY_PARTITION variable=data_diff complete
+//
+//    const data_T k_inv = 1.0/dim;
+//    for (int i = 0; i < dim; ++i){
+//        sum_cache += data[i];
+//    }
+////    mean = CONFIG_T::template product<data_T, data_T>::product(sum_cache, k_inv);
+////    std::cout << "mean: " << std::endl;
+////    std::cout << mean << std::endl;
+//
+//    for (int i = 0; i < dim; ++i){
+//        data_diff[i] = data[i] - mean;
+//        diff = data_diff[i]*data_diff[i];
+//        sum_cache2 += diff;
+////        std::cout << "data_diff: " << std::endl;
+////        std::cout << data_diff[i] << std::endl;
+////        std::cout << " " << std::endl;
+//    }
+//    var = CONFIG_T::template product<data_T, data_T>::product(sum_cache2, k_inv);
+////    std::cout << "var: " << std::endl;
+////    std::cout << var << std::endl;
+////    std::cout << " " << std::endl;
+//
+//    int index = var*(CONFIG_T::table_size)*inv_range_inv;
+//    if (CONFIG_T::table_range > 1) index = var*(CONFIG_T::table_size)/ (int)CONFIG_T::table_range;
+//
+//	if (index < 0)   index = 0;
+//	if (index > CONFIG_T::table_size-1) index = CONFIG_T::table_size-1;
+//	deno_inver = (typename CONFIG_T::table_t) invert_sqr_table[index];
+////    std::cout << "deno_inver: " << std::endl;
+////    std::cout << deno_inver << std::endl;
+////    std::cout << " " << std::endl;
+//
+////    std::cout << "index: " << std::endl;
+////    std::cout << index << std::endl;
+////    std::cout << " " << std::endl;
+//
+//    for (int i = 0; i < dim; ++i){
+//        res[i] = data_diff[i] * deno_inver * scale[i] + bias[i];
+//    }
+//
+//}
 
 
 // template<class data_T, class res_T, typename CONFIG_T>
@@ -319,9 +410,9 @@ void layernormalize(
         }
     }
 
-    // std::cout << "out Norm: " << std::endl;
-    // nnet::print_result<result_t, CONFIG_T::n_in>(res, std::cout);
-    // std::cout << " " << std::endl;
+//     std::cout << "out Dense: " << std::endl;
+//     nnet::print_result<result_t, CONFIG_T::n_in>(res, std::cout);
+//     std::cout << " " << std::endl;
 
 }
 

@@ -1,33 +1,35 @@
-import pytest
-import hls4ml
-import tensorflow as tf
-import numpy as np
 from pathlib import Path
 
+import numpy as np
+import pytest
+import tensorflow as tf
+
+import hls4ml
 
 test_root_path = Path(__file__).parent
 
-test_root_path = Path('/tmp')
 
-
-@pytest.mark.parametrize('backend', ['Vivado', 'Quartus'])
+@pytest.mark.parametrize('backend', ['Vivado', 'Vitis', 'Quartus'])
 def test_keras_h5_loader(backend):
     input_shape = (10,)
-    model = tf.keras.models.Sequential([
-        tf.keras.layers.InputLayer(input_shape=input_shape),
-        tf.keras.layers.Activation(activation='relu'),
-    ])
+    model = tf.keras.models.Sequential(
+        [
+            tf.keras.layers.InputLayer(input_shape=input_shape),
+            tf.keras.layers.Activation(activation='relu'),
+        ]
+    )
 
     hls_config = hls4ml.utils.config_from_keras_model(model, granularity='name')
 
-    config = {'OutputDir': 'KerasH5_loader_test',
-              'ProjectName': 'KerasH5_loader_test',
-              'Backend': backend,
-              'ClockPeriod': 25.0,
-              'IOType': 'io_parallel',
-              'HLSConfig': hls_config,
-              'KerasH5': str(test_root_path / 'KerasH5_loader_test.h5'),
-              'output_dir': str(test_root_path / 'KerasH5_loader_test')}
+    config = {
+        'OutputDir': str(test_root_path / f'hls4mlprj_KerasH5_loader_test_{backend}'),
+        'ProjectName': f'KerasH5_loader_test_{backend}',
+        'Backend': backend,
+        'ClockPeriod': 25.0,
+        'IOType': 'io_parallel',
+        'HLSConfig': hls_config,
+        'KerasH5': str(test_root_path / f'hls4mlprj_KerasH5_loader_test_{backend}/model.h5'),
+    }
 
     model.save(config['KerasH5'])
     hls_model = hls4ml.converters.keras_to_hls(config)

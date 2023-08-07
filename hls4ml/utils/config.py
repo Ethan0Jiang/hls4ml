@@ -35,10 +35,14 @@ def _get_precision_from_quantizer(quantizer):
         else: 
             quantizer['class_name'] = quantizer_obj.__name__
 
-    supported_quantizers = ['quantized_bits', 'quantized_relu', 'quantized_tanh', 'quantized_po2', 'quantized_relu_po2']
+    supported_quantizers = ['quantized_bits', 'quantized_relu', 'quantized_tanh', 'quantized_po2', 'quantized_relu_po2', 'quantized_softmax']
     signed = True
     if quantizer['class_name'] in supported_quantizers:
-        bits = int(quantizer['config']['bits'])
+        bits = quantizer['config']['bits']
+        if isinstance(bits, list):
+            bits = int(bits[0])
+        else:
+            bits = int(bits)
         # if integer isn't specified, it should be the same as bits
         integer = int(quantizer['config'].get('integer', bits-1)) + 1
         if quantizer['class_name'] == 'quantized_relu':
@@ -107,7 +111,7 @@ def config_from_keras_model(model, granularity='model', default_precision='ap_fi
     norm_layers = ['BatchNormalization', 'LayerNormalization']
     activation_layers = ['Activation', 'LeakyReLU', 'ThresholdedReLU', 'ELU', 'PReLU', 'Softmax', 'ReLU']
     merge_layers = ['Add', 'Subtract', 'Multiply', 'Average', 'Maximum', 'Minimum', 'Concatenate', 'Dot']
-    qkeras_layers = ['QDense', 'QActivation', 'QConv1D', 'QConv2D', 'QBatchNormalization', 'QConv2DBatchnorm']
+    qkeras_layers = ['QDense', 'QActivation', 'QConv1D', 'QConv2D', 'QBatchNormalization', 'QConv2DBatchnorm', 'QMultiHeadAttention', 'QLayerNormalization']
     upsampling_layers = ['UpSampling1D', 'UpSampling2D']
     reshaping_layers = ['ZeroPadding1D', 'ZeroPadding2D']
     graph_layers = ['GarNet', 'GarNetStack']

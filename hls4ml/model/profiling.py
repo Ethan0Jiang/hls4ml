@@ -175,6 +175,8 @@ def types_hlsmodel(model):
 
     for layer in model.get_layers():
         for iw, weight in enumerate(layer.get_weights()):
+            if iw > 1:  # If there are more than two weights
+                continue  # Skip the current iteration and proceed with the next weight
             wname = '{}/{}'.format(layer.name, suffix[iw])
             T = weight.type
             if T.name != 'model':
@@ -211,7 +213,10 @@ def weights_hlsmodel(model, fmt='longform', plot='boxplot'):
 
     for layer in model.get_layers():
         name = layer.name
+        # print(name)
         for iw, weight in enumerate(layer.get_weights()):
+            if iw > 1:  # If there are more than two weights
+                continue  # Skip the current iteration and proceed with the next weight
             l = '{}/{}'.format(name, suffix[iw])
             w = weight.data.flatten()
             w = abs(w[w != 0])
@@ -251,11 +256,24 @@ def _keras_batchnorm(layer):
 def _keras_layer(layer):
     return layer.get_weights(), ['w', 'b']
 
+def _keras_layernorm(layer):
+    weights = layer.get_weights()
+
+    gamma = weights[0]
+    beta = weights[1]
+
+    scale = gamma
+    bias = beta
+
+    return [scale, bias], ['s', 'b']
+
 
 keras_process_layer_map = defaultdict(lambda: _keras_layer,
                                       {
                                           'BatchNormalization': _keras_batchnorm,
-                                          'QBatchNormalization': _keras_batchnorm
+                                          'QBatchNormalization': _keras_batchnorm,
+                                          'LayerNormalization': _keras_layernorm,
+                                          'QLayerNormalization': _keras_layernorm,
                                       })
 
 

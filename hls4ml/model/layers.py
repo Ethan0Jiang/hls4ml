@@ -1264,6 +1264,7 @@ layer_map = {
     'BatchNormalization'     : BatchNormalization,
     'QBatchNormalization'    : BatchNormalization,
     'LayerNormalization'     : LayerNormalization,
+    'QLayerNormalization'    : LayerNormalization,
     'MaxPooling1D'           : Pooling1D,
     'AveragePooling1D'       : Pooling1D,
     'MaxPooling2D'           : Pooling2D,
@@ -1288,6 +1289,7 @@ layer_map = {
     'GarNet'                 : GarNet,
     'GarNetStack'            : GarNetStack,
     'MultiHeadAttention'     : MultiHeadAttention,
+    'QMultiHeadAttention'    : MultiHeadAttention,
     # TensorFlow-specific layers:
     'BiasAdd'                : BiasAdd,
 }
