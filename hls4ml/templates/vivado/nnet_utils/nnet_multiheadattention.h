@@ -17,6 +17,7 @@ struct multiheadattention_config
     typedef float bias_t;
     typedef float weight_t;
     typedef float accum_t;
+    typedef ap_fixed<16, 8> multi_t;
 
     // Layer Sizes
     static const unsigned num_heads = 10;
@@ -35,11 +36,11 @@ struct multiheadattention_config
     using product = nnet::product::mult<x_T, y_T>;
 };
 
+
 template<int PackSize, class data_T>
 struct datapack {
     data_T data[PackSize];
 };
-
 
 template <class data_T,int size>
 void read_stream_array(
@@ -52,6 +53,26 @@ void read_stream_array(
 		out[k] = data_in[k].read();
 	}
 }
+
+//////////////////
+//Dennis version//
+//////////////////
+//template<int PackSize, class data_T>
+//struct datapack {
+//    typename CONFIG_T::multi_t data[PackSize];
+//};
+//
+//template <class data_T,int size>
+//void read_stream_array(
+//	hls::stream<data_T>    data_in[size],
+//	typename CONFIG_T::multi_t out[size]
+//)
+//{
+//	for (int k=0; k<size; ++k){
+//	#pragma HLS UNROLL
+//		out[k] = data_in[k].read();
+//	}
+//}
 
 
 template<class data_T, class res_T, typename CONFIG_T>
